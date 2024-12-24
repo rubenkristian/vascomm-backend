@@ -4,10 +4,30 @@ import (
 	"log"
 
 	"github.com/rubenkristian/backend/internal/models"
+	"github.com/rubenkristian/backend/pkg"
 )
 
 func (seeder *Seeder) userSeeder() {
-	users := []models.User{}
+	password, err := pkg.HashPasssword("password")
+
+	if err != nil {
+		log.Println("Failed to seed user:", err)
+		return
+	}
+
+	users := []models.User{{
+		Name:        "user",
+		PhoneNumber: "62800000000",
+		Email:       "user@gmail.com",
+		Password:    password,
+		Role:        "user",
+	}, {
+		Name:        "admin",
+		PhoneNumber: "62800000001",
+		Email:       "admin@gmail.com",
+		Password:    password,
+		Role:        "admin",
+	}}
 
 	for _, user := range users {
 		if err := seeder.db.Create(&user).Error; err != nil {
@@ -16,5 +36,5 @@ func (seeder *Seeder) userSeeder() {
 		}
 	}
 
-	log.Println("Database seeded")
+	log.Println("Database user table seeded")
 }

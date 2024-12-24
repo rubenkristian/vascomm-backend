@@ -2,26 +2,88 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
+	"github.com/go-gomail/gomail"
 	"github.com/rubenkristian/backend/internal/models"
+	"github.com/rubenkristian/backend/pkg"
 	"gorm.io/gorm"
 )
 
 type UserService struct {
-	DB *gorm.DB
+	authGenerator *pkg.AuthToken
+	db            *gorm.DB
+	emailer       *pkg.Emailer
 }
 
-func InitializeUserService(db *gorm.DB) *UserService {
+func InitializeUserService(authGenerator *pkg.AuthToken, db *gorm.DB, emailer *pkg.Emailer) *UserService {
 	return &UserService{
-		DB: db,
+		authGenerator: authGenerator,
+		db:            db,
+		emailer:       emailer,
 	}
 }
 
-func (ps *UserService) GetAllUser(take, skip int, search string) ([]models.User, error) {
+func (userService *UserService) UserLogin(username, password string) (*models.User, error) {
+	var user models.User
+
+	if err := userService.db.Where("phone_number = ? OR email = ? AND role = ?", username, username, "user").First(&user).Error; err != nil {
+		return nil, fmt.Errorf("email/phone number not match")
+	}
+
+	if err := userService.authGenerator.ValidatePassword(password, user.Password); err != nil {
+		return nil, fmt.Errorf("invalid password for this user")
+	}
+
+	return &user, nil
+}
+
+func (userService *UserService) AdminLogin(username, password string) (*models.User, error) {
+	var user models.User
+
+	if err := userService.db.Where("phone_number = ? OR email = ? AND role = ?", username, username, "admin").First(&user).Error; err != nil {
+		return nil, fmt.Errorf("email/phone number not match")
+	}
+
+	if err := userService.authGenerator.ValidatePassword(password, user.Password); err != nil {
+		return nil, fmt.Errorf("invalid password for this admin")
+	}
+
+	return &user, nil
+}
+
+func (userService *UserService) RegisterFromGoogle(name, email, phoneNumber string) *models.User {
+	var user models.User
+
+	err := userService.db.Where("phone_number = ?", phoneNumber).Or("email = ?", email).First(&user).Error
+
+	if err != nil {
+		user = models.User{
+			Name:        name,
+			Email:       email,
+			PhoneNumber: phoneNumber,
+		}
+		userService.db.Create(&user)
+	}
+
+	return &user
+}
+
+func (us *UserService) GetUser(id uint) (*models.User, error) {
+	var user models.User
+
+	if err := us.db.Find(&user, id).Error; err != nil {
+		return nil, fmt.Errorf("user with id %d not found", id)
+	}
+
+	return &user, nil
+}
+
+func (us *UserService) GetAllUser(take, skip int, search string) ([]models.User, error) {
 	var users []models.User
 
-	query := ps.DB.Model(&models.User{}).Limit(take).Offset(skip)
+	query := us.db.Model(&models.User{}).Limit(take).Offset(skip)
 
 	trimSearch := strings.TrimSpace(search)
 
@@ -38,40 +100,57 @@ func (ps *UserService) GetAllUser(take, skip int, search string) ([]models.User,
 	return users, nil
 }
 
-func (ps *UserService) CreateUser(product *models.User) error {
-	return ps.DB.Create(product).Error
+func (userService *UserService) CreateUser(userInput *models.User) error {
+	password, hash, err := userService.authGenerator.GeneratePassword(12)
+
+	if err != nil {
+		return err
+	}
+
+	email := gomail.NewMessage()
+	email.SetHeader("Subject", "Password Login")
+	email.SetBody("text/html", "Here is your password <b>"+password+"</b>")
+
+	if err := userService.emailer.SendEmail(userInput.Email, email); err != nil {
+		return err
+	}
+
+	userInput.Password = hash
+	userInput.Role = "user"
+
+	return userService.db.Create(userInput).Error
 }
 
-func (ps *UserService) UpdateUser(id uint, input *models.User) (*models.User, error) {
+func (us *UserService) UpdateUser(id uint, userInput *models.User) (*models.User, error) {
 	var user models.User
 
-	if err := ps.DB.First(&user, id).Error; err != nil {
+	if err := us.db.First(&user, id).Error; err != nil {
 		return nil, errors.New("product not found")
 	}
 
-	if input.Name != "" {
-		user.Name = input.Name
+	if userInput.Name != "" {
+		user.Name = userInput.Name
 	}
 
-	if input.Email != "" {
-		user.Email = input.Email
+	if userInput.Email != "" {
+		user.Email = userInput.Email
 	}
 
-	if input.PhoneNumber != "" {
-		user.PhoneNumber = input.PhoneNumber
+	if userInput.PhoneNumber != "" {
+		user.PhoneNumber = userInput.PhoneNumber
 	}
 
-	if input.Password != "" {
-		user.Password = input.Password
+	if userInput.Password != "" {
+		user.Password = userInput.Password
 	}
 
-	if err := ps.DB.Save(&user).Error; err != nil {
+	if err := us.db.Save(&user).Error; err != nil {
 		return nil, err
 	}
 
 	return &user, nil
 }
 
-func (ps *UserService) DeleteUser(id uint) error {
-	return ps.DB.Delete(&models.User{}, id).Error
+func (us *UserService) DeleteUser(id uint) error {
+	return us.db.Delete(&models.User{}, id).Error
 }

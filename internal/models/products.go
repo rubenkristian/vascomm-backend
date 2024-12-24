@@ -12,7 +12,7 @@ type Product struct {
 	Description string         `gorm:"size:500;not null" json:"description" validate:"omitempty,min=10"`
 	Price       float64        `gorm:"not null" json:"price" validate:"required,gte=0"`
 	Image       string         `json:"image"`
-	CreatedAt   time.Time      `gorm:"autoCreateTime"`
-	UpdatedAt   time.Time      `gorm:"autoUpdateTime"`
-	DeletedAt   gorm.DeletedAt `gorm:"index"`
+	CreatedAt   time.Time      `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt   time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt   gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }

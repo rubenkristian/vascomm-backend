@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rubenkristian/backend/configs"
+	"github.com/rubenkristian/backend/database/seeders"
 	"github.com/rubenkristian/backend/internal/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -14,10 +15,8 @@ type Database struct {
 	DB *gorm.DB
 }
 
-func ConnectDatabase() (*Database, error) {
-	dbConfig := configs.LoadDatabaseConfig()
-
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=false", dbConfig.DBHost, dbConfig.DBUser, dbConfig.DBPassword, dbConfig.DBName, dbConfig.DBPort)
+func ConnectDatabase(dbConfig *configs.DatabaseConfig) (*Database, error) {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", dbConfig.DBUser, dbConfig.DBPassword, dbConfig.DBHost, dbConfig.DBPort, dbConfig.DBName)
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
@@ -36,4 +35,9 @@ func ConnectDatabase() (*Database, error) {
 func (db *Database) Migrate() {
 	db.DB.AutoMigrate(&models.User{}, &models.Product{})
 	fmt.Println("Database migrated")
+}
+
+func (db *Database) Seeder(fresh bool) {
+	seeders.SeedDB(db.DB).RunSeeder(fresh)
+	fmt.Println("Seeder done")
 }
