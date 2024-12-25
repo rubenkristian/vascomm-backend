@@ -24,19 +24,22 @@ func InitializeRoute(app *fiber.App, db *gorm.DB, emailer *utils.Emailer, env *c
 	productHandler := handler.InitializeProductHandler(productService)
 	userHandler := handler.InitializeUserHandler(userService)
 
+	all := []string{"user", "admin"}
+	admin := []string{"admin"}
+
 	api := app.Group("/api", authMiddleware.CheckAuthorization)
 
-	api.Get("/users/:user_id", authMiddleware.CheckRole([]string{"user", "admin"}), userHandler.GetUser)
-	api.Get("/users", authMiddleware.CheckRole([]string{"user", "admin"}), userHandler.GetAllUser)
-	api.Post("/users", authMiddleware.CheckRole([]string{"admin"}), userHandler.CreateUser)
-	api.Put("/users/:user_id", authMiddleware.CheckRole([]string{"admin"}), userHandler.UpdateUser)
-	api.Delete("/users/:user_id", authMiddleware.CheckRole([]string{"admin"}), userHandler.DeleteUser)
+	api.Get("/users/:user_id", authMiddleware.CheckRole(all), userHandler.GetUser)
+	api.Get("/users", authMiddleware.CheckRole(all), userHandler.GetAllUser)
+	api.Post("/users", authMiddleware.CheckRole(admin), userHandler.CreateUser)
+	api.Put("/users/:user_id", authMiddleware.CheckRole(admin), userHandler.UpdateUser)
+	api.Delete("/users/:user_id", authMiddleware.CheckRole(admin), userHandler.DeleteUser)
 
-	api.Get("/products/:product_id", authMiddleware.CheckRole([]string{"user", "admin"}), productHandler.GetProduct)
-	api.Get("/products", authMiddleware.CheckRole([]string{"user", "admin"}), productHandler.GetAllProduct)
-	api.Post("/products", authMiddleware.CheckRole([]string{"admin"}), productHandler.PostCreateProduct)
-	api.Put("/products/:product_id", authMiddleware.CheckRole([]string{"admin"}), productHandler.UpdateProduct)
-	api.Delete("/products/:product_id", authMiddleware.CheckRole([]string{"admin"}), productHandler.DeleteProduct)
+	api.Get("/products/:product_id", authMiddleware.CheckRole(all), productHandler.GetProduct)
+	api.Get("/products", authMiddleware.CheckRole(all), productHandler.GetAllProduct)
+	api.Post("/products", authMiddleware.CheckRole(admin), productHandler.PostCreateProduct)
+	api.Put("/products/:product_id", authMiddleware.CheckRole(admin), productHandler.UpdateProduct)
+	api.Delete("/products/:product_id", authMiddleware.CheckRole(admin), productHandler.DeleteProduct)
 
 	auth := app.Group("/auth")
 
