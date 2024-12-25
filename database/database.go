@@ -12,7 +12,7 @@ import (
 )
 
 type Database struct {
-	DB *gorm.DB
+	Conn *gorm.DB
 }
 
 func ConnectDatabase(dbConfig *configs.DatabaseConfig) (*Database, error) {
@@ -29,15 +29,15 @@ func ConnectDatabase(dbConfig *configs.DatabaseConfig) (*Database, error) {
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	return &Database{DB: db}, nil
+	return &Database{Conn: db}, nil
 }
 
-func (db *Database) Migrate() {
-	db.DB.AutoMigrate(&models.User{}, &models.Product{})
+func (database *Database) Migrate() {
+	database.Conn.AutoMigrate(&models.User{}, &models.Product{})
 	fmt.Println("Database migrated")
 }
 
-func (db *Database) Seeder(fresh bool) {
-	seeders.SeedDB(db.DB).RunSeeder(fresh)
+func (database *Database) Seeder(fresh bool) {
+	seeders.SeedDB(database.Conn).RunSeeder(fresh)
 	fmt.Println("Seeder done")
 }

@@ -1,14 +1,16 @@
 package handler
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/rubenkristian/backend/internal/models"
 	"github.com/rubenkristian/backend/internal/services"
-	"github.com/rubenkristian/backend/pkg"
+	"github.com/rubenkristian/backend/utils"
 )
 
 type ProductHandler struct {
@@ -25,32 +27,16 @@ func (productHandler *ProductHandler) GetProduct(c *fiber.Ctx) error {
 	productId, err := c.ParamsInt("product_id")
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad Request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad Request", err)(c)
 	}
 
 	product, err := productHandler.productService.GetProduct(uint(productId))
 
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"code":    fiber.StatusNotFound,
-			"message": "Not found",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusNotFound, "Not found", err)(c)
 	}
 
-	return c.JSON(fiber.Map{
-		"code":    200,
-		"message": "Success get product",
-		"data":    product,
-	})
+	return utils.ResponseSuccess(fiber.StatusOK, "Success get product", product)(c)
 }
 
 func (productHandler *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
@@ -61,20 +47,10 @@ func (productHandler *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 	products, err := productHandler.productService.GetAllProduct(take, skip, search)
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad Request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad Request", err)(c)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "Success fetch products",
-		"data":    products,
-	})
+	return utils.ResponseSuccess(fiber.StatusOK, "Success fetch products", products)(c)
 }
 
 func (productHandler *ProductHandler) PostCreateProduct(c *fiber.Ctx) error {
@@ -83,49 +59,31 @@ func (productHandler *ProductHandler) PostCreateProduct(c *fiber.Ctx) error {
 	price, err := strconv.ParseFloat(c.FormValue("price"), 64)
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadGateway,
-			"message": "Price must be a number",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad Request", err)(c)
 	}
 
 	image, err := c.FormFile("image")
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadGateway,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad Request", err)(c)
 	}
 
-	if !pkg.IsImage(image) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadGateway,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": "File is not support, image only.",
-			},
-		})
+	if !utils.IsImage(image) {
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad Request", fmt.Errorf("file is not support, image only"))(c)
 	}
 
 	os.MkdirAll("./images/product", os.ModePerm)
 
-	savePath := filepath.Join("./images/product", image.Filename)
+	randomFileName, err := utils.GenerateImageName(8)
+
+	if err != nil {
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
+	}
+
+	savePath := filepath.Join("./images/product", fmt.Sprintf("%s-%d.%s", randomFileName, time.Now().Unix(), filepath.Ext(image.Filename)))
 
 	if err := c.SaveFile(image, savePath); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
 	var product *models.Product = &models.Product{
@@ -137,11 +95,7 @@ func (productHandler *ProductHandler) PostCreateProduct(c *fiber.Ctx) error {
 
 	productHandler.productService.CreateProduct(product)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"code":    fiber.StatusCreated,
-		"message": "Success create product",
-		"data":    product,
-	})
+	return utils.ResponseSuccess(fiber.StatusCreated, "Success create product", product)(c)
 }
 
 func (productHandler *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
@@ -150,13 +104,7 @@ func (productHandler *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	productId, err := c.ParamsInt("product_id")
 
 	if err != nil {
-		return c.JSON(fiber.Map{
-			"code":    400,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
 	name := c.FormValue("name")
@@ -164,13 +112,7 @@ func (productHandler *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	price, err := strconv.ParseFloat(c.FormValue("price"), 2)
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadGateway,
-			"message": "Price must be a number",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
 	product.Name = name
@@ -185,14 +127,8 @@ func (productHandler *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	}
 
 	if imageAvailable {
-		if !pkg.IsImage(image) {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"code":    fiber.StatusBadGateway,
-				"message": "Only accept image",
-				"data": fiber.Map{
-					"error": err.Error(),
-				},
-			})
+		if !utils.IsImage(image) {
+			return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 		}
 
 		os.MkdirAll("./images/product", os.ModePerm)
@@ -200,13 +136,7 @@ func (productHandler *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 		savePath := filepath.Join("./images/product", image.Filename)
 
 		if err := c.SaveFile(image, savePath); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"code":    fiber.StatusInternalServerError,
-				"message": "Something went wrong",
-				"data": fiber.Map{
-					"error": err.Error(),
-				},
-			})
+			return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 		}
 
 		product.Image = savePath
@@ -215,48 +145,22 @@ func (productHandler *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	updatedProduct, err := productHandler.productService.UpdateProduct(uint(productId), &product)
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err,
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"code":    fiber.StatusCreated,
-		"message": "Success update product",
-		"data":    updatedProduct,
-	})
+	return utils.ResponseSuccess(fiber.StatusCreated, "Success update product", updatedProduct)(c)
 }
 
 func (productHandler *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	productId, err := c.ParamsInt("product_id")
 
 	if err != nil {
-		return c.JSON(fiber.Map{
-			"code":    400,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad Request", err)(c)
 	}
 
 	if err := productHandler.productService.DeleteProduct(uint(productId)); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err,
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "Success delete product",
-		"data":    nil,
-	})
+	return utils.ResponseSuccess(fiber.StatusOK, "Success delete product", nil)(c)
 }

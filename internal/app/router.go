@@ -6,13 +6,13 @@ import (
 	"github.com/rubenkristian/backend/internal/handler"
 	"github.com/rubenkristian/backend/internal/middleware"
 	"github.com/rubenkristian/backend/internal/services"
-	"github.com/rubenkristian/backend/pkg"
+	"github.com/rubenkristian/backend/utils"
 	"gorm.io/gorm"
 )
 
-func InitializeRoute(app *fiber.App, db *gorm.DB, emailer *pkg.Emailer, env *configs.EnvConfig) {
+func InitializeRoute(app *fiber.App, db *gorm.DB, emailer *utils.Emailer, env *configs.EnvConfig) {
 	jwtKey := env.LoadJwtConfig()
-	authGenerator := pkg.InitializeAuth(jwtKey.SecretKey, jwtKey.RefreshKey)
+	authGenerator := utils.InitializeAuth(jwtKey.SecretKey, jwtKey.RefreshKey)
 	userService := services.InitializeUserService(authGenerator, db, emailer)
 	productService := services.InitializeProductService(db)
 

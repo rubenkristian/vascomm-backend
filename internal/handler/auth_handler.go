@@ -3,19 +3,20 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/rubenkristian/backend/configs"
 	"github.com/rubenkristian/backend/internal/models"
 	"github.com/rubenkristian/backend/internal/services"
-	"github.com/rubenkristian/backend/pkg"
+	"github.com/rubenkristian/backend/utils"
 	"golang.org/x/oauth2"
 )
 
 type AuthHandler struct {
 	userService   *services.UserService
-	authGenerator *pkg.AuthToken
+	authGenerator *utils.AuthToken
 	oauth2Config  *configs.ConfigOauth
 }
 
@@ -28,7 +29,12 @@ type RefreshTokenInput struct {
 	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
-func InitializeAuthHandler(userService *services.UserService, authGenerator *pkg.AuthToken, oauth2Config *configs.ConfigOauth) *AuthHandler {
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func InitializeAuthHandler(userService *services.UserService, authGenerator *utils.AuthToken, oauth2Config *configs.ConfigOauth) *AuthHandler {
 	return &AuthHandler{
 		userService:   userService,
 		authGenerator: authGenerator,
@@ -40,161 +46,87 @@ func (authHandler *AuthHandler) LoginUser(c *fiber.Ctx) error {
 	loginInput := new(LoginInput)
 
 	if err := c.BodyParser(loginInput); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
 	user, err := authHandler.userService.UserLogin(loginInput.Username, loginInput.Password)
 
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": err.Error(),
-			"data":    nil,
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", err)(c)
 	}
 
 	accessToken, refreshToken, err := authHandler.authGenerator.GenerateToken(user)
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "Success authorization",
-		"data": fiber.Map{
-			"access_token":  accessToken,
-			"refresh_token": refreshToken,
-		},
-	})
+	return utils.ResponseSuccess(fiber.StatusOK, "Success authorization", TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	})(c)
 }
 
 func (authHandler *AuthHandler) LoginAdmin(c *fiber.Ctx) error {
 	loginInput := new(LoginInput)
 
 	if err := c.BodyParser(loginInput); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
 	user, err := authHandler.userService.AdminLogin(loginInput.Username, loginInput.Password)
 
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": err.Error(),
-			"data":    nil,
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", err)(c)
 	}
 
 	accessToken, refreshToken, err := authHandler.authGenerator.GenerateToken(user)
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "Success authorization",
-		"data": fiber.Map{
-			"access_token":  accessToken,
-			"refresh_token": refreshToken,
-		},
-	})
+	return utils.ResponseSuccess(fiber.StatusOK, "Success authorization", TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	})(c)
 }
 
 func (authHandler *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	refreshTokenInput := new(RefreshTokenInput)
 
 	if err := c.BodyParser(refreshTokenInput); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
 	exp, userId, err := authHandler.authGenerator.ValidateRefresh(refreshTokenInput.RefreshToken)
 
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": "Unauthorized",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", err)(c)
 	}
 
 	now := time.Now().Unix()
 
 	if int64(exp) < now {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": "Unauthorized",
-			"data": fiber.Map{
-				"error": "refresh token expired",
-			},
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", fmt.Errorf("refresh token expired"))(c)
 	}
 
 	user, err := authHandler.userService.GetUser(uint(userId))
 
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": "Unauthorized",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", err)(c)
 	}
 
 	accessToken, refreshToken, err := authHandler.authGenerator.GenerateToken(user)
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "Success authorization",
-		"data": fiber.Map{
-			"access_token":  accessToken,
-			"refresh_token": refreshToken,
-		},
-	})
+	return utils.ResponseSuccess(fiber.StatusOK, "Success authorization", TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	})(c)
 }
 
 func (authHandler *AuthHandler) GoogleLogin(c *fiber.Ctx) error {
@@ -209,38 +141,20 @@ func (authHandler *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
 	token, err := authHandler.oauth2Config.Config.Exchange(context.Background(), code)
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
 	client := authHandler.oauth2Config.Config.Client(context.Background(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 	defer resp.Body.Close()
 
 	var userInfo map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
 	name := userInfo["name"].(string)
@@ -252,51 +166,25 @@ func (authHandler *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
 	accessToken, refreshToken, err := authHandler.authGenerator.GenerateToken(user)
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "Success authorization",
-		"data": fiber.Map{
-			"access_token":  accessToken,
-			"refresh_token": refreshToken,
-		},
-	})
+	return utils.ResponseSuccess(fiber.StatusOK, "Success authorization", TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	})(c)
 }
 
 func (authHandler *AuthHandler) RegisterUser(c *fiber.Ctx) error {
 	userInput := new(models.User)
 
 	if err := c.BodyParser(userInput); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
 	if err := authHandler.userService.CreateUser(userInput); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"code":    fiber.StatusCreated,
-		"message": "Success register user",
-		"data":    nil,
-	})
+	return utils.ResponseSuccess(fiber.StatusCreated, "Success register user", nil)(c)
 }

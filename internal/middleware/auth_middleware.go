@@ -1,21 +1,22 @@
 package middleware
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/rubenkristian/backend/internal/models"
 	"github.com/rubenkristian/backend/internal/services"
-	"github.com/rubenkristian/backend/pkg"
+	"github.com/rubenkristian/backend/utils"
 )
 
 type AuthMiddleware struct {
 	userService   *services.UserService
-	authGenerator *pkg.AuthToken
+	authGenerator *utils.AuthToken
 }
 
-func InitializeAuthMiddleware(userService *services.UserService, authGenerator *pkg.AuthToken) *AuthMiddleware {
+func InitializeAuthMiddleware(userService *services.UserService, authGenerator *utils.AuthToken) *AuthMiddleware {
 	return &AuthMiddleware{
 		userService:   userService,
 		authGenerator: authGenerator,
@@ -26,19 +27,11 @@ func (authMiddleware *AuthMiddleware) CheckAuthorization(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization", "")
 
 	if authHeader == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": "Unauthorized",
-			"data":    nil,
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", fmt.Errorf("authorization not found"))(c)
 	}
 
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": "Invalid token format",
-			"data":    nil,
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", fmt.Errorf("invalid token format"))(c)
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
@@ -46,35 +39,19 @@ func (authMiddleware *AuthMiddleware) CheckAuthorization(c *fiber.Ctx) error {
 	exp, userId, err := authMiddleware.authGenerator.ValidateToken(tokenString)
 
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": "Unauthorized",
-			"data":    nil,
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", err)(c)
 	}
 
 	now := time.Now().Unix()
 
 	if int64(exp) < now {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": "Unauthorized",
-			"data": fiber.Map{
-				"error": "Expired token",
-			},
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", fmt.Errorf("token expired"))(c)
 	}
 
 	user, err := authMiddleware.userService.GetUser(uint(userId))
 
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": "Unauthorized",
-			"data": fiber.Map{
-				"error": "User not found",
-			},
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", fmt.Errorf("user not found"))(c)
 	}
 
 	c.Locals("user", user)
@@ -87,13 +64,7 @@ func (authMiddleware *AuthMiddleware) CheckRole(requiredRole []string) func(c *f
 		userData := c.Locals("user").(*models.User)
 
 		if userData == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"code":    fiber.StatusUnauthorized,
-				"message": "Unauthorized",
-				"data": fiber.Map{
-					"error": "User not found",
-				},
-			})
+			return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", fmt.Errorf("user not found"))(c)
 		}
 
 		for _, role := range requiredRole {
@@ -102,12 +73,6 @@ func (authMiddleware *AuthMiddleware) CheckRole(requiredRole []string) func(c *f
 			}
 		}
 
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"code":    fiber.StatusUnauthorized,
-			"message": "Unauthorized",
-			"data": fiber.Map{
-				"error": "User not authorized to this route",
-			},
-		})
+		return utils.ResponseError(fiber.StatusUnauthorized, "Unauthorized", fmt.Errorf("user not authorized to this route"))(c)
 	}
 }

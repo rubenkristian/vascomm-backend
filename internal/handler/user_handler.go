@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/rubenkristian/backend/internal/models"
 	"github.com/rubenkristian/backend/internal/services"
+	"github.com/rubenkristian/backend/utils"
 )
 
 type UserHandler struct {
@@ -20,32 +21,16 @@ func (userHandler *UserHandler) GetUser(c *fiber.Ctx) error {
 	userId, err := c.ParamsInt("user_id")
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad Request", err)(c)
 	}
 
 	user, err := userHandler.userService.GetUser(uint(userId))
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "Something went wrong",
-		"data":    user,
-	})
+	return utils.ResponseSuccess(fiber.StatusOK, "Success get user", user)(c)
 }
 
 func (userHandler *UserHandler) GetAllUser(c *fiber.Ctx) error {
@@ -56,50 +41,24 @@ func (userHandler *UserHandler) GetAllUser(c *fiber.Ctx) error {
 	users, err := userHandler.userService.GetAllUser(take, skip, search)
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"code":    fiber.StatusOK,
-		"message": "Success get all users",
-		"data":    users,
-	})
+	return utils.ResponseSuccess(fiber.StatusOK, "Success get all users", users)(c)
 }
 
 func (userHandler *UserHandler) CreateUser(c *fiber.Ctx) error {
 	input := new(models.User)
 
 	if err := c.BodyParser(input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
 	if err := userHandler.userService.CreateUser(input); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"code":    fiber.StatusInternalServerError,
-		"message": "Something went wrong",
-		"data":    input,
-	})
+	return utils.ResponseSuccess(fiber.StatusCreated, "Success create user", input)(c)
 }
 
 func (userHandler *UserHandler) UpdateUser(c *fiber.Ctx) error {
@@ -107,70 +66,32 @@ func (userHandler *UserHandler) UpdateUser(c *fiber.Ctx) error {
 	userId, err := c.ParamsInt("user_id")
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
 	if err := c.BodyParser(input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
 	user, err := userHandler.userService.UpdateUser(uint(userId), input)
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"code":    fiber.StatusCreated,
-		"message": "Success update user",
-		"data":    user,
-	})
+	return utils.ResponseSuccess(fiber.StatusCreated, "Success update user", user)(c)
 }
 
 func (userHandler *UserHandler) DeleteUser(c *fiber.Ctx) error {
 	userId, err := c.ParamsInt("user_id")
 
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"code":    fiber.StatusBadRequest,
-			"message": "Bad request",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
 	}
 
 	if err := userHandler.userService.DeleteUser(uint(userId)); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    fiber.StatusInternalServerError,
-			"message": "Something went wrong",
-			"data": fiber.Map{
-				"error": err.Error(),
-			},
-		})
+		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"code":    fiber.StatusCreated,
-		"message": "Success delete user",
-		"data":    nil,
-	})
+	return utils.ResponseSuccess(fiber.StatusCreated, "Success delete user", nil)(c)
 }

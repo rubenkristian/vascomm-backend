@@ -7,17 +7,17 @@ import (
 
 	"github.com/go-gomail/gomail"
 	"github.com/rubenkristian/backend/internal/models"
-	"github.com/rubenkristian/backend/pkg"
+	"github.com/rubenkristian/backend/utils"
 	"gorm.io/gorm"
 )
 
 type UserService struct {
-	authGenerator *pkg.AuthToken
+	authGenerator *utils.AuthToken
 	db            *gorm.DB
-	emailer       *pkg.Emailer
+	emailer       *utils.Emailer
 }
 
-func InitializeUserService(authGenerator *pkg.AuthToken, db *gorm.DB, emailer *pkg.Emailer) *UserService {
+func InitializeUserService(authGenerator *utils.AuthToken, db *gorm.DB, emailer *utils.Emailer) *UserService {
 	return &UserService{
 		authGenerator: authGenerator,
 		db:            db,

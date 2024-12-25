@@ -4,11 +4,11 @@ import (
 	"log"
 
 	"github.com/rubenkristian/backend/internal/models"
-	"github.com/rubenkristian/backend/pkg"
+	"github.com/rubenkristian/backend/utils"
 )
 
 func (seeder *Seeder) userSeeder() {
-	password, err := pkg.HashPasssword("password")
+	password, err := utils.HashPasssword("password")
 
 	if err != nil {
 		log.Println("Failed to seed user:", err)
