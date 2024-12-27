@@ -29,7 +29,7 @@ func (ps *ProductService) GetProduct(id uint) (*models.Product, error) {
 	return &product, nil
 }
 
-func (ps *ProductService) GetAllProduct(take, skip int, search string) ([]models.Product, error) {
+func (ps *ProductService) GetAllProduct(take, skip int, search, sort, sortBy string) ([]models.Product, error) {
 	var products []models.Product
 	query := ps.db.Model(&models.Product{}).Limit(take).Offset(skip)
 
@@ -39,7 +39,7 @@ func (ps *ProductService) GetAllProduct(take, skip int, search string) ([]models
 		query = query.Where("name LIKE ?", "%"+trimSearch+"%")
 	}
 
-	err := query.Find(&products).Error
+	err := query.Order(sortBy + " " + sort).Find(&products).Error
 
 	if err != nil {
 		return nil, err

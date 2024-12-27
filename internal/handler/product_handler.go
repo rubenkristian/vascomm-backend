@@ -43,8 +43,10 @@ func (productHandler *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 	take := c.QueryInt("take", 10)
 	skip := c.QueryInt("skip", 0)
 	search := c.Query("search", "")
+	sort := c.Query("sort", "asc")
+	sortBy := c.Query("sortBy", "id")
 
-	products, err := productHandler.productService.GetAllProduct(take, skip, search)
+	products, err := productHandler.productService.GetAllProduct(take, skip, search, sort, sortBy)
 
 	if err != nil {
 		return utils.ResponseError(fiber.StatusBadRequest, "Bad Request", err)(c)

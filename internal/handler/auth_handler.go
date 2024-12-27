@@ -30,8 +30,9 @@ type RefreshTokenInput struct {
 }
 
 type TokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	AccessToken  string       `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
+	User         *models.User `json:"user"`
 }
 
 func InitializeAuthHandler(userService *services.UserService, authGenerator *utils.AuthToken, oauth2Config *configs.ConfigOauth) *AuthHandler {
@@ -64,6 +65,7 @@ func (authHandler *AuthHandler) LoginUser(c *fiber.Ctx) error {
 	return utils.ResponseSuccess(fiber.StatusOK, "Success authorization", TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		User:         user,
 	})(c)
 }
 
@@ -89,6 +91,7 @@ func (authHandler *AuthHandler) LoginAdmin(c *fiber.Ctx) error {
 	return utils.ResponseSuccess(fiber.StatusOK, "Success authorization", TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		User:         user,
 	})(c)
 }
 
@@ -126,6 +129,7 @@ func (authHandler *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	return utils.ResponseSuccess(fiber.StatusOK, "Success authorization", TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		User:         user,
 	})(c)
 }
 
@@ -172,6 +176,7 @@ func (authHandler *AuthHandler) GoogleCallback(c *fiber.Ctx) error {
 	return utils.ResponseSuccess(fiber.StatusOK, "Success authorization", TokenResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		User:         user,
 	})(c)
 }
 

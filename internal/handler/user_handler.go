@@ -37,8 +37,10 @@ func (userHandler *UserHandler) GetAllUser(c *fiber.Ctx) error {
 	take := c.QueryInt("take", 10)
 	skip := c.QueryInt("skip", 0)
 	search := c.Query("search", "")
+	sort := c.Query("sort", "asc")
+	sortBy := c.Query("sortBy", "id")
 
-	users, err := userHandler.userService.GetAllUser(take, skip, search)
+	users, err := userHandler.userService.GetAllUser(take, skip, search, sort, sortBy)
 
 	if err != nil {
 		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)

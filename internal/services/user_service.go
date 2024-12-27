@@ -80,7 +80,7 @@ func (us *UserService) GetUser(id uint) (*models.User, error) {
 	return &user, nil
 }
 
-func (us *UserService) GetAllUser(take, skip int, search string) ([]models.User, error) {
+func (us *UserService) GetAllUser(take, skip int, search, sort, sortBy string) ([]models.User, error) {
 	var users []models.User
 
 	query := us.db.Model(&models.User{}).Limit(take).Offset(skip)
@@ -91,7 +91,7 @@ func (us *UserService) GetAllUser(take, skip int, search string) ([]models.User,
 		query = query.Where("name LIKE ?", "%"+trimSearch+"%")
 	}
 
-	err := query.Find(&users).Error
+	err := query.Order(sortBy + " " + sort).Find(&users).Error
 
 	if err != nil {
 		return nil, err
