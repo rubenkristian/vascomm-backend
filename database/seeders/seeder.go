@@ -1,6 +1,9 @@
 package seeders
 
-import "gorm.io/gorm"
+import (
+	"github.com/rubenkristian/backend/internal/models"
+	"gorm.io/gorm"
+)
 
 type Seeder struct {
 	db *gorm.DB
@@ -12,7 +15,11 @@ func SeedDB(db *gorm.DB) *Seeder {
 	}
 }
 
-func (seeder *Seeder) RunSeeder() {
+func (seeder *Seeder) RunSeeder(fresh bool) {
+	if fresh {
+		seeder.db.Migrator().DropTable(&models.User{}, &models.Product{})
+		seeder.db.AutoMigrate(&models.User{}, &models.Product{})
+	}
 	seeder.productSeeder()
 	seeder.userSeeder()
 }
