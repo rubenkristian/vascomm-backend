@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/rubenkristian/backend/commons"
 	"github.com/rubenkristian/backend/configs"
 	"github.com/rubenkristian/backend/database"
 	"github.com/rubenkristian/backend/internal/app"
@@ -20,12 +21,18 @@ func main() {
 		return
 	}
 
-	emailer, err := utils.InitializeEmailer(emailConfig)
+	mailer, err := utils.InitializeEmailer(emailConfig)
 
 	if err != nil {
 		log.Fatalf("Failed to initialize email %v", err)
 		return
 	}
 
-	app.CreateApp(db.Conn, emailer, env)
+	appConfig := commons.AppConfig{
+		Db:     db.Conn,
+		Mailer: mailer,
+		Env:    env,
+	}
+
+	app.CreateApp(appConfig)
 }

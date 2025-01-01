@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rubenkristian/backend/commons"
 	"github.com/rubenkristian/backend/internal/models"
 	"gorm.io/gorm"
 )
@@ -29,17 +30,19 @@ func (ps *ProductService) GetProduct(id uint) (*models.Product, error) {
 	return &product, nil
 }
 
-func (ps *ProductService) GetAllProduct(take, skip int, search, sort, sortBy string) ([]models.Product, error) {
+func (ps *ProductService) GetAllProduct(pagination *commons.PaginationParams) ([]models.Product, error) {
+	pagination.SetParams(10, "asc", "id")
 	var products []models.Product
-	query := ps.db.Model(&models.Product{}).Limit(take).Offset(skip)
 
-	trimSearch := strings.TrimSpace(search)
+	query := ps.db.Model(&models.Product{}).Limit(pagination.Take).Offset(pagination.Skip)
+
+	trimSearch := strings.TrimSpace(pagination.Search)
 
 	if trimSearch != "" {
 		query = query.Where("name LIKE ?", "%"+trimSearch+"%")
 	}
 
-	err := query.Order(sortBy + " " + sort).Find(&products).Error
+	err := query.Order(pagination.SortBy + " " + pagination.Sort).Find(&products).Error
 
 	if err != nil {
 		return nil, err

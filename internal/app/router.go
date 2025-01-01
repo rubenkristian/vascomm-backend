@@ -2,18 +2,21 @@ package app
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/rubenkristian/backend/configs"
+	"github.com/rubenkristian/backend/commons"
 	"github.com/rubenkristian/backend/internal/handler"
 	"github.com/rubenkristian/backend/internal/middleware"
 	"github.com/rubenkristian/backend/internal/services"
 	"github.com/rubenkristian/backend/utils"
-	"gorm.io/gorm"
 )
 
-func InitializeRoute(app *fiber.App, db *gorm.DB, emailer *utils.Emailer, env *configs.EnvConfig) {
+func InitializeRoute(app *fiber.App, appConfig *commons.AppConfig) {
+	env := appConfig.Env
+	db := appConfig.Db
+	mailer := appConfig.Mailer
+
 	jwtKey := env.LoadJwtConfig()
 	authGenerator := utils.InitializeAuth(jwtKey.SecretKey, jwtKey.RefreshKey)
-	userService := services.InitializeUserService(authGenerator, db, emailer)
+	userService := services.InitializeUserService(authGenerator, db, mailer)
 	productService := services.InitializeProductService(db)
 
 	oauth2Config := env.LoadOAuthConfig()

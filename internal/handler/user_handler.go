@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/rubenkristian/backend/commons"
 	"github.com/rubenkristian/backend/internal/models"
 	"github.com/rubenkristian/backend/internal/services"
 	"github.com/rubenkristian/backend/utils"
@@ -34,13 +35,13 @@ func (userHandler *UserHandler) GetUser(c *fiber.Ctx) error {
 }
 
 func (userHandler *UserHandler) GetAllUser(c *fiber.Ctx) error {
-	take := c.QueryInt("take", 10)
-	skip := c.QueryInt("skip", 0)
-	search := c.Query("search", "")
-	sort := c.Query("sort", "asc")
-	sortBy := c.Query("sortBy", "id")
+	paginationParams := &commons.PaginationParams{}
 
-	users, err := userHandler.userService.GetAllUser(take, skip, search, sort, sortBy)
+	if err := c.QueryParser(paginationParams); err != nil {
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
+	}
+
+	users, err := userHandler.userService.GetAllUser(paginationParams)
 
 	if err != nil {
 		return utils.ResponseError(fiber.StatusInternalServerError, "Something went wrong", err)(c)

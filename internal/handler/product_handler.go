@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rubenkristian/backend/commons"
 	"github.com/rubenkristian/backend/internal/models"
 	"github.com/rubenkristian/backend/internal/services"
 	"github.com/rubenkristian/backend/utils"
@@ -40,13 +41,13 @@ func (productHandler *ProductHandler) GetProduct(c *fiber.Ctx) error {
 }
 
 func (productHandler *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
-	take := c.QueryInt("take", 10)
-	skip := c.QueryInt("skip", 0)
-	search := c.Query("search", "")
-	sort := c.Query("sort", "asc")
-	sortBy := c.Query("sortBy", "id")
+	paginationParams := &commons.PaginationParams{}
 
-	products, err := productHandler.productService.GetAllProduct(take, skip, search, sort, sortBy)
+	if err := c.QueryParser(paginationParams); err != nil {
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
+	}
+
+	products, err := productHandler.productService.GetAllProduct(paginationParams)
 
 	if err != nil {
 		return utils.ResponseError(fiber.StatusBadRequest, "Bad Request", err)(c)
@@ -111,7 +112,7 @@ func (productHandler *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 
 	name := c.FormValue("name")
 	desc := c.FormValue("description")
-	price, err := strconv.ParseFloat(c.FormValue("price"), 2)
+	price, err := strconv.ParseFloat(c.FormValue("price"), 64)
 
 	if err != nil {
 		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
@@ -128,11 +129,11 @@ func (productHandler *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 		product.Image = ""
 	}
 
-	if imageAvailable {
-		if !utils.IsImage(image) {
-			return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
-		}
+	if imageAvailable && !utils.IsImage(image) {
+		return utils.ResponseError(fiber.StatusBadRequest, "Bad request", err)(c)
+	}
 
+	if imageAvailable {
 		os.MkdirAll("./images/product", os.ModePerm)
 
 		savePath := filepath.Join("./images/product", image.Filename)

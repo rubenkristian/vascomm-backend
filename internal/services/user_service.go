@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-gomail/gomail"
+	"github.com/rubenkristian/backend/commons"
 	"github.com/rubenkristian/backend/internal/models"
 	"github.com/rubenkristian/backend/utils"
 	"gorm.io/gorm"
@@ -80,18 +81,19 @@ func (us *UserService) GetUser(id uint) (*models.User, error) {
 	return &user, nil
 }
 
-func (us *UserService) GetAllUser(take, skip int, search, sort, sortBy string) ([]models.User, error) {
+func (us *UserService) GetAllUser(pagination *commons.PaginationParams) ([]models.User, error) {
+	pagination.SetParams(10, "asc", "id")
 	var users []models.User
 
-	query := us.db.Model(&models.User{}).Limit(take).Offset(skip)
+	query := us.db.Model(&models.User{}).Limit(pagination.Take).Offset(pagination.Skip)
 
-	trimSearch := strings.TrimSpace(search)
+	trimSearch := strings.TrimSpace(pagination.Search)
 
 	if trimSearch != "" {
 		query = query.Where("name LIKE ?", "%"+trimSearch+"%")
 	}
 
-	err := query.Order(sortBy + " " + sort).Find(&users).Error
+	err := query.Order(pagination.SortBy + " " + pagination.Sort).Find(&users).Error
 
 	if err != nil {
 		return nil, err
